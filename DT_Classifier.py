@@ -114,6 +114,9 @@ class DecisionTreeClassifier:
         return test_df,train_df
 
     def convert_feature_to_x_y_relation(self, feature):
+      '''
+      This method is to create a count of distinct values of dependent varibale by distinct groups of an independent variable
+      '''
       feature_tuple = (tuple(f) for f in feature)
 
 
