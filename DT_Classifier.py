@@ -3,6 +3,9 @@ from collections import Counter
 import itertools
 from math import log
 import time
+import os
+import string
+import sys
 
 class DecisionTreeClassifier:
     def __init__(self, max_depth=None):
@@ -114,23 +117,25 @@ class DecisionTreeClassifier:
         return test_df,train_df
 
     def convert_feature_to_x_y_relation(self, feature):
-      '''
-      This method is to create a count of distinct values of dependent varibale by distinct groups of an independent variable
-      '''
       feature_tuple = (tuple(f) for f in feature)
+      #print(feature_tuple)
 
 
       ls = []
       c= Counter(feature_tuple)
+      #print("Counter: ",c)
       for l in c:
           ls.append([l[0] , l[1], c[l]])
-      ##print(ls)
+      #print("ls",ls)
 
-      key_func = lambda x: x[0]
+      key_func = lambda x: x[0].strip()
+      ls.sort()
       gr = []  
+      
       for key, group in itertools.groupby(ls, key_func):
+          #print("key_func",key, list(group))
           gr.append(list(group))
-      ##print(gr)
+      #print("gr", gr)
 
       gr.sort()
       final_list = []
@@ -184,6 +189,63 @@ class DecisionTreeClassifier:
         return gain
 
 
+
+#############################################Variable dist is a dictionary with Key as feature and value as a list giving feature value and dependent variable#######################################################
+    def get_dictionary_with_x_groups(self,columname,X,Y):
+      Variable_dict ={}
+      for colm in  range(len(columname)-1):
+        temp=[]
+        for x,y in zip([x[colm] for x in X] ,Y):
+          temp.append([x,y])
+        Variable_dict[columname[colm]] = temp  
+        temp.append([x,y])
+      return Variable_dict
+
+
+
+#print(Y_count_list)
+
+#print(Variable_dict['Outlook'])
+#print(dt.convert_feature_to_x_y_relation(Variable_dict['Outlook']))
+
+
+
+
+#############################################Below gives a root dictionary, which has key as the feature and value as information gain######################################################
+    def give_x_information_gain(self,Variable_dict):
+      root={}
+      groups={}
+      for key in Variable_dict.keys():
+        #print("Groups for Feature %s is %s" %(key,  dt.convert_feature_to_x_y_relation(Variable_dict[key])))
+        #print("Information Gain for Feature %s is %s" %(key,  dt.gain(Y_count_list,dt.convert_feature_to_x_y_relation(Variable_dict[key]))))
+        root[key] =  dt.gain(Y_count_list,dt.convert_feature_to_x_y_relation(Variable_dict[key]))
+        groups[key] = Variable_dict[key]
+      Max_IG = max(root, key=root.get) 
+      root_index = columname.index(Max_IG)
+      Max_IG_Value = root[Max_IG]
+      return Max_IG,root_index,Max_IG_Value
+
+#############################################Below gives a sub tree on the basis of a node# with respect to Y#####################################################
+    def find_subtree_for_node(self,root_index, X, Y):
+      all_val_node = list(set([x[root_index] for x in X]))
+      child_tree={}
+      for l in all_val_node:
+        temp_l =[]
+        if l not in child_tree.keys():
+            child_tree[l] =[]
+            for x,y in zip(X,Y):
+              if x[root_index] == l:
+                temp_l.append(x+[y]) 
+            child_tree[l] = temp_l
+
+      return   child_tree    
+
+
+
+
+##################################################
+
+
 '''
 ##Demo - Categtorical Dataset
 columname,dataset=read_files('AppleStore.csv')
@@ -194,54 +256,57 @@ print (len(test_df))
 '''
 
 ###Demo - Numerical Dataset
+#####Creation of on object#####
 dt = DecisionTreeClassifier()
-columname,dataset=dt.read_files('/Python_Projects/Python_Learning/Decision_Tree/data/UCI_Credit_Card.csv')
-test_df,train_df=dt.test_train_split(dataset,.10)
+#columname,dataset=dt.read_files('/Python_Projects/Python_Learning/Decision_Tree/data/UCI_Credit_Card.csv')
+#####To get current working director and then joining with appropriate data under data folder#####
+path =os.path.abspath(os.getcwd())
+# load and prepare data
+
+#filename = os.path.join(path,"data/data_banknote_authentication.csv")
+filename = os.path.join(path,"data/Golf_data_set.csv")
+columname,dataset=dt.read_files(filename)
+
+
+
+#####Breaking down the dataset into train_df and test_df, and giving 10% as the split
+test_df,train_df=dt.test_train_split(dataset,0)
 #this is the dependent variable, or label (y) as a list)
 Y =  [item[-1] for item in train_df]
 #these are the independent variables (x) as a list of list)
 X = [item[:-1] for item in train_df]
+print("X is:", X)
 
-#print(train_df[0:5])
-#print(X[0:5])
-#print(Y[0:5])
-#Gives total no of classes
-n_classes_ = len(set(Y))
-n_features_ = len(X[0])
-#print("No of classes are %s and no of features are %s" %(n_classes_,n_features_))
-
-#print("Column Names is: ", columname[3])
-#print('first record',[x[3] for x in X])
-#print('Independent variable',Y)
-
-#We would have to loop through all independent features 
-#feature_name = columname[3]
-#print(feature_name)
-
-# This will create a dictionary with key as variable name and value as a list of list containing groups of x,y values
 Variable_dict ={}
-for colm in  range(len(columname)-1):
-  temp=[]
-  for x,y in zip([x[colm] for x in X] ,Y):
-    temp.append([x,y])
-  Variable_dict[columname[colm]] = temp  
-
-#print('Variable dictionary Keys:', Variable_dict.keys())
-
-#print('Data in feature Education is :', Variable_dict['EDUCATION'])
-
-#columname[3] = [x[3] for x in X]
-
+Variable_dict = dt.get_dictionary_with_x_groups(columname,X,Y)
+print("\n")
 Y_count_list = [Y.count(y) for y in set(Y)]#0,1, although , we need to make sure that it shd come up in a order
-#print(Y_count_list)
-
-Education =   dt.convert_feature_to_x_y_relation(Variable_dict['EDUCATION'])
-
-print("Information Gain for Feature education is", dt.gain(Y_count_list, Education))
-
-# TEST
-
-###__ example 1 (AIMA book, fig18.3)
+Max_IG,root_index,Max_IG_Value = dt.give_x_information_gain(Variable_dict)
+print("Max_IG is '", Max_IG ,"' & root_index is ",root_index )
+print("\n")
+child_tree ={}
+child_tree = dt.find_subtree_for_node(root_index, X, Y)
+print("child tree is ", child_tree)
 
 
+
+child_1 ={}
+for key in child_tree.keys():
+  print("Child_tree values testing", [x[:-1] for x in child_tree[key]], [x[-1] for x in child_tree[key]])
+  Variable_dict_child_1 = dt.get_dictionary_with_x_groups(columname,[x[:-1] for x in child_tree[key]],[x[-1] for x in child_tree[key]])
+  Max_IG,root_index,Max_IG_Value = dt.give_x_information_gain(Variable_dict_child_1)
+  print("Key is",key, " & Max_IG is '", Max_IG ,"' & root_index is ",root_index , " Max gain value is ", Max_IG_Value)
+  if len(set(x[-1] for x in child_tree[key])) == 1:
+    child_tree_1 = child_tree[key]
+    print("child_tree_1", child_tree_1)
+  else:  
+    child_tree_1 = dt.find_subtree_for_node(root_index, [x[:-1] for x in child_tree[key]],[x[-1] for x in child_tree[key]]) 
+    print("child_tree_1", child_tree_1)
+  child_1[key] = child_tree_1
+  print("Max_IG is '", Max_IG ,"' & root_index is ",root_index , " Max gain value is ", Max_IG_Value)
+  print("\n")
+
+
+
+print("child_1 ",child_1)  
 
